@@ -66,6 +66,29 @@ public class Main {
     }
 
 
+    public static void fix_redo_with_url_corrections() {
+
+        String tofix_filename = "scraped_ok.csv";
+        ArrayList<String> lines = new ArrayList<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(tofix_filename))) {
+            String line;
+            boolean firstLine = true; // flag to skip the first line
+            while ((line = br.readLine()) != null) {
+                if (!firstLine) {
+                    lines.add(line);
+                }
+                firstLine = false;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
+    }
+
+
     public static void main(String[] args) throws IOException, InterruptedException {
 
 
@@ -142,7 +165,7 @@ public class Main {
 
             driver.get("https://github.com/");
             WebElement searchBox = driver.findElement(By.name("q"));
-            searchBox.sendKeys(app_name);
+            searchBox.sendKeys(app_name  + " language:java language:kotlin");
             searchBox.submit();
             Thread.sleep(1000);
 
@@ -157,8 +180,12 @@ public class Main {
                 github_hrefs.add(item.findElement(By.className("v-align-middle")).getAttribute("href"));
             }
 
+            int current_page = 0;
+
             for (String href : github_hrefs) {
 
+
+                current_page++;
                 //TODO: for now this only searches the first page. shall we change t to cover also other pages?
                 driver.get(href);
                 Thread.sleep(1000);
@@ -167,13 +194,19 @@ public class Main {
                 searchBox.sendKeys(package_name);
                 searchBox.submit();
 
-                Thread.sleep(1000);
+                Thread.sleep(5000);
 
 
-                if (driver.getPageSource().contains("We couldn’t find any code matching")) {
+                if (driver.getPageSource().contains("Whoa there!") || driver.getPageSource().contains("The requested content has not yet been indexed")) {
+                    System.out.println("DID NOT WORK - REDO");
+                    app_name = "REDO!!! " + app_name;
+                    break;
+                }
+                if (driver.getPageSource().contains("We couldn’t find any code matching") || driver.getPageSource().contains("We couldn’t find any issues")) {
                     System.out.println("package name not found here");
                 }
                 else {
+                    System.out.println("found here");
                     right_url = href;
                     break;
                 }
@@ -245,6 +278,7 @@ public class Main {
 
 
             String play_store_base_url = "https://play.google.com/store/apps/details?id=";
+            String play_store_full_url = "null";
 
             //package_name = "com.zorinos.zorin_connect"; //debug
             driver.get(play_store_base_url + package_name);
@@ -257,6 +291,7 @@ public class Main {
                 play_store_base_url="";
             }
             else {
+                play_store_full_url = play_store_base_url + package_name;
                 WebElement rating = driver.findElements(By.className("wVqUob")).get(0).findElement(By.className("ClM7O"));
                 WebElement downloads = driver.findElements(By.className("wVqUob")).get(1).findElement(By.className("ClM7O"));
                 WebElement lastupdate = driver.findElements(By.className("TKjAsc")).get(0);
@@ -276,6 +311,7 @@ public class Main {
 
 
 
+            if (current_page==9 && right_url =="null") app_name = "NOT FIRST 10!!! " + app_name;
             System.out.println("RECAP");
             System.out.println("App name: " + app_name);
             System.out.println("Package name: " + package_name);
@@ -297,7 +333,7 @@ public class Main {
 
             writeLineToCSV("Results.csv", app_name + "," + base_url + "," + package_name + "," + tar_gz_url + "," +
                     lastupdate_fdroid + "," + right_url + "," + github_latest_version_date + "," + github_tags.split(" ")[0] + "," +
-                    github_forks + "," + github_stars + "," + github_watching + "," + play_store_base_url + package_name + "," +
+                    github_forks + "," + github_stars + "," + github_watching + "," + play_store_full_url + "," +
                     playstore_latest_release + "," + ((!playstore_downloads.equals("")) ? playstore_rating : "") + "," + ((!playstore_downloads.equals("")) ? playstore_downloads : playstore_rating));
 
         }
